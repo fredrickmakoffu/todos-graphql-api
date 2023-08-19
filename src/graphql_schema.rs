@@ -1,5 +1,21 @@
+extern crate dotenv;
+use std::env;
+use diesel::pg::PgConnection;
+use diesel::prelude::*;
+use dotenv::dotenv;
+use crate::schema::todos;
+
 // import EmptyMutation and RootNode from juniper.
 use juniper::{EmptyMutation,RootNode};
+
+
+fn establish_connection() -> PgConnection {
+    dotenv().ok();
+
+    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    PgConnection::establish(&database_url).expect(&format!("Error connecting to {}", database_url))
+}
+
 
 // Define the structure of a todo by setting the fields of the Todo.
 struct Todo{
@@ -31,18 +47,12 @@ pub struct QueryRoot;
 #[juniper::object]
 impl QueryRoot {
     fn todos() -> Vec<Todo> {
-        vec![
-            Todo{
-                id:1,
-                title:"Code in Rust".to_string(),
-                completed:false
-            },
-            Todo{
-                id:2,
-                title:"Cook supper meal".to_string(),
-                completed:false
-            }
-        ]
+        use crate::schema::todos::dsl::*;
+
+        let connection = establish_connection();
+        let results = todos.load::<Todo>(&connection).expect("Error loading todos");
+
+        results
     }
 }
 
